@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from openai import OpenAI
+
 from sre_bench.agents.base import BaseAgent
 from sre_bench.schema import RCAOutput, Scenario
 
@@ -29,19 +31,7 @@ class SimpleLLMAgent(BaseAgent):
 
     def __init__(self, model: str | None = None, client: Any | None = None) -> None:
         self.model = model or os.getenv("AGENT_MODEL", "gpt-4o-mini")
-        if client is not None:
-            self.client = client
-            return
-
-        try:
-            from openai import OpenAI
-        except ModuleNotFoundError as exc:
-            raise RuntimeError(
-                "openai package is required to use SimpleLLMAgent. "
-                "Install dependencies with: pip install -e ."
-            ) from exc
-
-        self.client = OpenAI()
+        self.client = client or OpenAI()
 
     def diagnose(self, scenario: Scenario) -> RCAOutput:
         try:
