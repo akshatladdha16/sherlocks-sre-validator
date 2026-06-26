@@ -1,0 +1,44 @@
+{
+  "id": "k8s_oom_easy",
+  "category": "kubernetes",
+  "difficulty": "easy",
+  "context": {
+    "alert_message": "payments-svc pods OOMKilled (3 restarts in 10 min)",
+    "logs": [
+      "2026-06-26T10:21:14Z ERROR payments-svc worker-3 java.lang.OutOfMemoryError: Java heap space",
+      "2026-06-26T10:21:13Z WARN payments-svc image-processor processing receipt image size=24MB request_id=7f12",
+      "2026-06-26T10:20:59Z INFO payments-svc request complete status=200 path=/api/pay latency_ms=312",
+      "2026-06-26T10:20:50Z INFO payments-svc loading model ReceiptEnhancerV2",
+      "2026-06-26T10:20:12Z WARN payments-svc memory pressure detected heap_used_mb=486 heap_limit_mb=512",
+      "2026-06-26T10:19:44Z INFO payments-svc pod restarting reason=OOMKilled",
+      "2026-06-26T10:19:03Z INFO payments-svc request complete status=201 path=/api/pay latency_ms=288"
+    ],
+    "metrics": {
+      "payments_svc_memory_usage": "98%",
+      "payments_svc_restart_count_10m": "3",
+      "payments_svc_error_rate": "6%",
+      "payments_svc_cpu_usage": "52%"
+    },
+    "recent_deploys": [
+      {
+        "time_offset": "-45m",
+        "service": "payments-svc",
+        "change_summary": "Added receipt image processing feature for payment confirmation"
+      },
+      {
+        "time_offset": "-3h",
+        "service": "auth-svc",
+        "change_summary": "Minor log formatting cleanup"
+      }
+    ],
+    "slack_context": "On-call: We started seeing restarts shortly after the new receipt feature went live."
+  },
+  "ground_truth": {
+    "root_cause": "A memory regression in the new receipt image processing path pushed payments-svc over its memory limit, causing OOMKills.",
+    "contributing_factors": [
+      "payments-svc pod memory limit is too low for new workload",
+      "large user-uploaded receipt images increase heap usage"
+    ],
+    "correct_action": "Roll back the image processing change or raise resources.limits.memory for payments-svc, then redeploy and monitor restarts."
+  }
+}

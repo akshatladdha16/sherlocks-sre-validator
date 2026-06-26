@@ -1,0 +1,44 @@
+{
+  "id": "cascade_dns_hard",
+  "category": "cascade",
+  "difficulty": "hard",
+  "context": {
+    "alert_message": "Five services degraded simultaneously: user-svc, order-svc, notification-svc, payment-svc, inventory-svc",
+    "logs": [
+      "2026-06-26T16:05:09Z ERROR user-svc request_id=u91 dns lookup failed for profile-svc.internal: i/o timeout",
+      "2026-06-26T16:05:08Z ERROR order-svc request_id=o17 upstream call user-svc.internal failed: no such host",
+      "2026-06-26T16:05:07Z WARN notification-svc retrying webhook dispatch: dial tcp lookup webhook-router.internal: server misbehaving",
+      "2026-06-26T16:05:06Z ERROR payment-svc request_id=p33 dependency inventory-svc.internal connection refused",
+      "2026-06-26T16:05:04Z WARN inventory-svc outbound dependency catalog-svc.internal resolution latency=7900ms",
+      "2026-06-26T16:04:58Z INFO netops dns-rotate completed: switched internal resolvers to dns-int-v2",
+      "2026-06-26T16:04:49Z INFO user-svc deploy marker version=3.7.2"
+    ],
+    "metrics": {
+      "multi_service_error_rate": "12%-31% across 5 services",
+      "dns_resolution_p95": "7800ms",
+      "cluster_cpu_usage": "47%",
+      "db_error_rate": "normal"
+    },
+    "recent_deploys": [
+      {
+        "time_offset": "-25m",
+        "service": "network-infra",
+        "change_summary": "Rotated internal DNS servers to dns-int-v2"
+      },
+      {
+        "time_offset": "-2h",
+        "service": "user-svc",
+        "change_summary": "Minor API refactor"
+      }
+    ],
+    "slack_context": "NetOps: dns-int-v2 rollout finished recently. App teams reporting different-looking errors at the same time."
+  },
+  "ground_truth": {
+    "root_cause": "Internal DNS rotation introduced a TTL misconfiguration on dns-int-v2, causing intermittent service discovery failures across multiple services.",
+    "contributing_factors": [
+      "all internal services rely on DNS-based discovery",
+      "simultaneous failures appeared as unrelated service-specific errors"
+    ],
+    "correct_action": "Revert to previous DNS config or fix TTL settings on dns-int-v2, then verify DNS latency and resolution success recover."
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "deploy_timeout_hard",
+  "category": "deploy_regression",
+  "difficulty": "hard",
+  "context": {
+    "alert_message": "p95 latency rose from 220ms to 1800ms; no errors and no OOM alerts",
+    "logs": [
+      "2026-06-26T15:22:18Z INFO api-gateway request_id=jk12 upstream=notification-svc duration_ms=1784 status=200",
+      "2026-06-26T15:22:17Z WARN notification-svc outbound call to push-provider took 1650ms response=200",
+      "2026-06-26T15:22:12Z INFO notification-svc http-client version=2.2.0 read_timeout_ms=30000",
+      "2026-06-26T15:21:55Z INFO notification-svc deployment marker version=7.4.0",
+      "2026-06-26T15:21:39Z INFO api-gateway request status=200 latency_ms=1821",
+      "2026-06-26T15:21:26Z INFO autoscaler stable replicas=6",
+      "2026-06-26T15:21:02Z WARN push-provider intermittent slowness p95=1600ms"
+    ],
+    "metrics": {
+      "api_p95_latency": "1800ms",
+      "api_error_rate": "0%",
+      "notification_svc_memory_usage": "58%",
+      "traffic_requests_per_min": "normal_baseline"
+    },
+    "recent_deploys": [
+      {
+        "time_offset": "-30m",
+        "service": "notification-svc",
+        "change_summary": "Dependency bump: http-client 2.1.0 -> 2.2.0"
+      },
+      {
+        "time_offset": "-2h",
+        "service": "user-svc",
+        "change_summary": "Refactor auth middleware"
+      }
+    ],
+    "slack_context": "On-call: Weirdly there are almost no hard failures, just very slow responses after the latest notification deploy."
+  },
+  "ground_truth": {
+    "root_cause": "The http-client 2.2.0 upgrade changed default read timeout from 5s to 30s, so slow upstream calls now wait longer instead of failing fast.",
+    "contributing_factors": [
+      "push-provider is intermittently slow",
+      "timeout defaults were not pinned explicitly in service config"
+    ],
+    "correct_action": "Pin http-client to 2.1.0 or explicitly configure read_timeout=5s, then redeploy notification-svc."
+  }
+}

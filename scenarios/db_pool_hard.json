@@ -1,0 +1,44 @@
+{
+  "id": "db_pool_hard",
+  "category": "database",
+  "difficulty": "hard",
+  "context": {
+    "alert_message": "Primary DB connection pool exhausted; API error rate at 23%",
+    "logs": [
+      "2026-06-26T13:14:05Z ERROR reporting-svc request_id=ab91 failed: timeout acquiring DB connection from pool",
+      "2026-06-26T13:14:05Z WARN reporting-svc connection checkout wait_ms=8050 active=50 idle=0",
+      "2026-06-26T13:14:04Z INFO analytics-job started run_id=nightly-revenue-778 mode=full-recompute",
+      "2026-06-26T13:13:59Z WARN postgres active_connections=50 max_connections=50",
+      "2026-06-26T13:13:44Z ERROR reporting-svc leaked connection detected request_id=ab72 stack=report_builder.py:211",
+      "2026-06-26T13:13:20Z WARN redis cache evictions spike keyspace_hits=48%",
+      "2026-06-26T13:12:51Z INFO edge-gateway traffic up +15% vs weekly average"
+    ],
+    "metrics": {
+      "db_active_connections": "50/50",
+      "api_error_rate": "23%",
+      "reporting_svc_pool_in_use": "40/50",
+      "traffic_delta_vs_baseline": "+15%"
+    },
+    "recent_deploys": [
+      {
+        "time_offset": "-35m",
+        "service": "analytics-job",
+        "change_summary": "Started full revenue recompute using long-running DB queries"
+      },
+      {
+        "time_offset": "-50m",
+        "service": "reporting-svc",
+        "change_summary": "Released v2.1.0 with new report exporter"
+      }
+    ],
+    "slack_context": "Data team: The recompute job is still running. On-call: reporting-svc v2.1.0 also started around the same time."
+  },
+  "ground_truth": {
+    "root_cause": "A long-running analytics job consumed many DB connections while reporting-svc v2.1.0 leaked connections, together exhausting the pool.",
+    "contributing_factors": [
+      "primary DB max connections set to 50",
+      "reporting-svc connection leak increases pressure per request"
+    ],
+    "correct_action": "Stop the analytics job, roll back reporting-svc v2.1.0, and use a temporary pool-size increase only as short-term mitigation."
+  }
+}

@@ -1,0 +1,8 @@
+.env
+results/*.json
+results/*.html
+!results/sample_run.html
+__pycache__/
+*.pyc
+.venv/
+dist/

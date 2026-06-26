@@ -1,0 +1,44 @@
+{
+  "id": "db_slow_easy",
+  "category": "database",
+  "difficulty": "easy",
+  "context": {
+    "alert_message": "p99 API latency 4200ms (baseline 180ms); DB query time alert firing",
+    "logs": [
+      "2026-06-26T09:50:33Z WARN orders-api slow query duration_ms=3891 query='SELECT * FROM orders WHERE status = ? ORDER BY created_at DESC LIMIT 50'",
+      "2026-06-26T09:50:33Z INFO postgres plan: Seq Scan on orders  (cost=0.00..325948.22 rows=412233)",
+      "2026-06-26T09:50:32Z INFO orders-api route=/api/v2/orders/search status=200 latency_ms=4208",
+      "2026-06-26T09:50:30Z INFO orders-api route=/api/v1/orders status=200 latency_ms=190",
+      "2026-06-26T09:50:27Z WARN orders-api db pool wait_ms=412",
+      "2026-06-26T09:50:11Z INFO orders-api deploy_marker version=2.9.0",
+      "2026-06-26T09:49:58Z INFO postgres checkpoint complete"
+    ],
+    "metrics": {
+      "api_p99_latency": "4200ms",
+      "db_avg_query_time": "2400ms",
+      "db_cpu_usage": "88%",
+      "orders_search_requests_per_min": "340"
+    },
+    "recent_deploys": [
+      {
+        "time_offset": "-90m",
+        "service": "orders-api",
+        "change_summary": "Added /api/v2/orders/search endpoint with status filter"
+      },
+      {
+        "time_offset": "-4h",
+        "service": "web-frontend",
+        "change_summary": "Button style updates only"
+      }
+    ],
+    "slack_context": "Product team: New order search endpoint is getting heavy use since launch this morning."
+  },
+  "ground_truth": {
+    "root_cause": "The new /api/v2/orders/search query filters by status on orders without an index, causing expensive full table scans.",
+    "contributing_factors": [
+      "high traffic to the new endpoint",
+      "query reads from a large orders table"
+    ],
+    "correct_action": "Create an index on orders(status) concurrently and verify query plans switch from seq scan to index scan."
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "cascade_auth_easy",
+  "category": "cascade",
+  "difficulty": "easy",
+  "context": {
+    "alert_message": "payment-svc returning 503 responses",
+    "logs": [
+      "2026-06-26T08:11:33Z ERROR payment-svc request_id=p91 upstream auth-svc timeout after 2500ms status=503",
+      "2026-06-26T08:11:31Z WARN auth-svc cache miss storm keyspace=user_session miss_rate=97%",
+      "2026-06-26T08:11:30Z INFO redis cache event type=FLUSHALL actor=ops_user",
+      "2026-06-26T08:11:25Z WARN auth-svc response_time_ms=4012 endpoint=/validate-token",
+      "2026-06-26T08:11:20Z INFO payment-svc retries exhausted to auth-svc",
+      "2026-06-26T08:11:12Z INFO payment-svc health check ok",
+      "2026-06-26T08:10:59Z INFO auth-svc dependency redis connected"
+    ],
+    "metrics": {
+      "payment_svc_503_rate": "18%",
+      "auth_svc_p95_latency": "4000ms",
+      "redis_cache_hit_rate": "3%",
+      "payment_to_auth_timeout_count": "high"
+    },
+    "recent_deploys": [
+      {
+        "time_offset": "-5h",
+        "service": "payment-svc",
+        "change_summary": "Routine dependency patch"
+      },
+      {
+        "time_offset": "-6h",
+        "service": "auth-svc",
+        "change_summary": "No behavior changes"
+      }
+    ],
+    "slack_context": "Ops: A manual Redis flush was run about 10 minutes ago during troubleshooting of stale sessions."
+  },
+  "ground_truth": {
+    "root_cause": "A manual Redis flush caused an auth-svc cache miss storm, slowing auth responses and cascading into payment-svc timeouts and 503s.",
+    "contributing_factors": [
+      "payment-svc depends on auth-svc synchronously",
+      "no circuit breaker to absorb auth-svc latency spike"
+    ],
+    "correct_action": "Warm and stabilize Redis cache (or restore known-good cache data) and add circuit breaker/backoff from payment-svc to auth-svc."
+  }
+}

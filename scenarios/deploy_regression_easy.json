@@ -1,0 +1,44 @@
+{
+  "id": "deploy_regression_easy",
+  "category": "deploy_regression",
+  "difficulty": "easy",
+  "context": {
+    "alert_message": "checkout-svc NullPointerException spike; error rate 8%",
+    "logs": [
+      "2026-06-26T12:40:44Z ERROR checkout-svc request_id=91ac java.lang.NullPointerException: Cannot read field 'currency' because 'user.preferences' is null",
+      "2026-06-26T12:40:44Z INFO checkout-svc path=/v2/checkout/new-flow feature_flag=new_checkout_flow enabled=true",
+      "2026-06-26T12:40:43Z WARN checkout-svc user_id=usr_8192 profile_type=new_account preferences=null",
+      "2026-06-26T12:40:41Z INFO checkout-svc path=/v1/checkout legacy flow status=200",
+      "2026-06-26T12:40:30Z INFO checkout-svc deployment marker version=4.12.0",
+      "2026-06-26T12:40:18Z WARN checkout-svc error budget burn_rate=3.1",
+      "2026-06-26T12:40:06Z INFO checkout-svc health check ok"
+    ],
+    "metrics": {
+      "checkout_svc_error_rate": "8%",
+      "checkout_new_flow_requests_percent": "100%",
+      "checkout_svc_p95_latency": "410ms",
+      "checkout_svc_memory_usage": "64%"
+    },
+    "recent_deploys": [
+      {
+        "time_offset": "-15m",
+        "service": "checkout-svc",
+        "change_summary": "Enabled feature flag new_checkout_flow in production"
+      },
+      {
+        "time_offset": "-2h",
+        "service": "recommendation-svc",
+        "change_summary": "Model refresh"
+      }
+    ],
+    "slack_context": "Checkout team: We enabled new_checkout_flow globally right after deploy to gather metrics."
+  },
+  "ground_truth": {
+    "root_cause": "The new checkout flow assumes user.preferences is always present, but new accounts have null preferences and trigger a NullPointerException.",
+    "contributing_factors": [
+      "feature flag enabled for all users at once",
+      "missing null guard in new code path"
+    ],
+    "correct_action": "Disable new_checkout_flow immediately, add null checks around user.preferences, then re-enable gradually."
+  }
+}

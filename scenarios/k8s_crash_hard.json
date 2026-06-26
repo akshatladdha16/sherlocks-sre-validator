@@ -1,0 +1,44 @@
+{
+  "id": "k8s_crash_hard",
+  "category": "kubernetes",
+  "difficulty": "hard",
+  "context": {
+    "alert_message": "CrashLoopBackOff on api-gateway, order-svc, and inventory-svc",
+    "logs": [
+      "2026-06-26T11:02:10Z ERROR api-gateway startup failed: could not connect to postgres://db.internal/orders?sslmode=require",
+      "2026-06-26T11:02:09Z ERROR order-svc startup failed: invalid DATABASE_URL format, expected host:port",
+      "2026-06-26T11:02:08Z ERROR inventory-svc startup failed: dial tcp db.internal: missing port in address",
+      "2026-06-26T11:01:57Z WARN kubelet node-a high cpu usage 91% during autoscaling event",
+      "2026-06-26T11:01:41Z INFO shipping-svc deploy complete version=1.8.2",
+      "2026-06-26T11:01:32Z ERROR api-gateway exiting process code=1",
+      "2026-06-26T11:01:20Z INFO order-svc reading config from ConfigMap app-config-v2"
+    ],
+    "metrics": {
+      "cluster_node_a_cpu_usage": "91%",
+      "api_gateway_restart_count_10m": "5",
+      "order_svc_restart_count_10m": "4",
+      "inventory_svc_restart_count_10m": "4"
+    },
+    "recent_deploys": [
+      {
+        "time_offset": "-20m",
+        "service": "platform-config",
+        "change_summary": "Updated ConfigMap app-config-v2 with new DATABASE_URL value"
+      },
+      {
+        "time_offset": "-18m",
+        "service": "shipping-svc",
+        "change_summary": "Released version 1.8.2 for label printing"
+      }
+    ],
+    "slack_context": "Release manager: We did not deploy api-gateway/order/inventory today, only config and shipping-svc."
+  },
+  "ground_truth": {
+    "root_cause": "ConfigMap app-config-v2 has a malformed DATABASE_URL without a port, so all services that read it crash on startup.",
+    "contributing_factors": [
+      "three services share the same ConfigMap",
+      "invalid database connection string validation missing in config pipeline"
+    ],
+    "correct_action": "Patch ConfigMap app-config-v2 with a valid DATABASE_URL including port, then restart affected pods."
+  }
+}
