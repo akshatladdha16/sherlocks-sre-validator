@@ -123,12 +123,17 @@ Note: the runner automatically creates `results/` and trace subfolders if they d
 sre-bench run --agents all --scenarios all
 ```
 
-By default this evaluates `3 agents x 8 scenarios = 24` judged runs.
 
 ### 6) Generate HTML report
 
 ```bash
 sre-bench report --input results/run_<timestamp>.json --output results/sample_run.html
+```
+
+Generate a combined report across all runs in `results/`:
+
+```bash
+sre-bench report --input results --output results/all_runs_report.html
 ```
 
 ## CLI usage

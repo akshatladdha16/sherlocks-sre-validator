@@ -272,7 +272,10 @@ def run_command(
 
 
 @app.command("report")
-def report_command(input: Path = typer.Option(...), output: Path = typer.Option(...)) -> None:
+def report_command(
+    input: Path = typer.Option(..., help="Run JSON file or directory containing run_*.json files."),
+    output: Path = typer.Option(..., help="Output HTML report path."),
+) -> None:
     try:
         from sre_bench.report import generate_report
     except ModuleNotFoundError as exc:

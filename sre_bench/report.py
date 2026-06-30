@@ -112,6 +112,7 @@ REPORT_TEMPLATE = """
 
     <div class="meta">
       <div class="meta-card"><div class="meta-key">Run timestamp</div><div class="meta-val">{{ run_timestamp }}</div></div>
+      <div class="meta-card"><div class="meta-key">Source run files</div><div class="meta-val">{{ n_source_runs }}</div></div>
       <div class="meta-card"><div class="meta-key">Scenarios evaluated</div><div class="meta-val">{{ n_scenarios }}</div></div>
       <div class="meta-card"><div class="meta-key">Evaluations</div><div class="meta-val">{{ n_results }}</div></div>
       <div class="meta-card"><div class="meta-key">Judge model</div><div class="meta-val">{{ judge_model }}</div></div>
@@ -379,6 +380,7 @@ def _to_report_context(run_data: dict[str, Any]) -> dict[str, Any]:
     return {
         "run_timestamp": meta.get("timestamp", "unknown"),
         "judge_model": meta.get("judge_model", "not recorded"),
+        "n_source_runs": 1,
         "n_scenarios": len({r.scenario_id for r in results}),
         "n_results": len(results),
         "leaderboard": leaderboard,
@@ -390,9 +392,69 @@ def _to_report_context(run_data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def generate_report(input_path: Path, output_path: Path) -> Path:
-    run_data = json.loads(input_path.read_text(encoding="utf-8"))
+def _load_run_files(input_path: Path) -> list[Path]:
+    if input_path.is_file():
+        return [input_path]
+    if input_path.is_dir():
+        return sorted(input_path.glob("run_*.json"))
+    raise FileNotFoundError(f"Input path not found: {input_path}")
+
+
+def _merge_runs(run_files: list[Path]) -> dict[str, Any]:
+    if not run_files:
+        raise ValueError("No run files found. Provide a run JSON file or a directory with run_*.json")
+
+    merged_results: list[dict[str, Any]] = []
+    timestamps: list[str] = []
+    judge_models: set[str] = set()
+
+    for run_file in run_files:
+        payload = json.loads(run_file.read_text(encoding="utf-8"))
+        meta = payload.get("meta", {})
+        if meta.get("timestamp"):
+            timestamps.append(str(meta["timestamp"]))
+        if meta.get("judge_model"):
+            judge_models.add(str(meta["judge_model"]))
+
+        results = payload.get("results") or []
+        if results:
+            merged_results.extend(results)
+
+    if not merged_results:
+        raise ValueError("No judged results found across selected runs.")
+
+    timestamps_sorted = sorted(timestamps)
+    if not timestamps_sorted:
+        run_stamp = "unknown"
+    elif len(timestamps_sorted) == 1:
+        run_stamp = timestamps_sorted[0]
+    else:
+        run_stamp = f"{timestamps_sorted[0]} -> {timestamps_sorted[-1]}"
+
+    return {
+        "meta": {
+            "timestamp": run_stamp,
+            "judge_model": ", ".join(sorted(judge_models)) if judge_models else "not recorded",
+            "n_source_runs": len(run_files),
+        },
+        "results": merged_results,
+    }
+
+
+def _to_report_context_multi(run_data: dict[str, Any]) -> dict[str, Any]:
     context = _to_report_context(run_data)
+    context["n_source_runs"] = run_data.get("meta", {}).get("n_source_runs", 1)
+    return context
+
+
+def generate_report(input_path: Path, output_path: Path) -> Path:
+    run_files = _load_run_files(input_path)
+    if len(run_files) == 1 and input_path.is_file():
+        run_data = json.loads(run_files[0].read_text(encoding="utf-8"))
+    else:
+        run_data = _merge_runs(run_files)
+
+    context = _to_report_context_multi(run_data)
     html = Template(REPORT_TEMPLATE).render(**context)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html, encoding="utf-8")
