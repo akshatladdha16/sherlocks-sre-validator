@@ -105,7 +105,9 @@ class MultiAgentCrewAgent(BaseAgent):
             synth_task = Task(
                 description=(
                     "Synthesize findings and output JSON only with keys: "
-                    "root_cause, contributing_factors, recommended_action, confidence, reasoning_trace."
+                    "root_cause, contributing_factors, recommended_action, confidence, reasoning_trace. "
+                    "Set confidence as a float between 0.0 and 1.0. "
+                    "Set reasoning_trace as a single string (not a list)."
                 ),
                 expected_output=(
                     "JSON object with keys root_cause, contributing_factors, "
@@ -157,7 +159,7 @@ class MultiAgentCrewAgent(BaseAgent):
 
         try:
             parsed = json.loads(json_blob)
-            return RCAOutput.model_validate(parsed)
+            return self._validate_rca_payload(parsed)
         except Exception as exc:
             return RCAOutput(
                 root_cause="Agent failed to produce output",
@@ -166,6 +168,41 @@ class MultiAgentCrewAgent(BaseAgent):
                 confidence=0.0,
                 reasoning_trace=f"Failed to parse extracted JSON: {type(exc).__name__}: {exc}",
             )
+
+    @staticmethod
+    def _validate_rca_payload(payload: dict[str, Any]) -> RCAOutput:
+        normalized = dict(payload)
+
+        confidence = normalized.get("confidence", 0.0)
+        if isinstance(confidence, str):
+            lowered = confidence.strip().lower()
+            if lowered in {"high", "very high"}:
+                confidence = 0.85
+            elif lowered in {"medium", "moderate"}:
+                confidence = 0.55
+            elif lowered in {"low", "very low"}:
+                confidence = 0.25
+            else:
+                try:
+                    confidence = float(lowered)
+                except ValueError:
+                    confidence = 0.0
+        normalized["confidence"] = float(confidence)
+
+        factors = normalized.get("contributing_factors", [])
+        if isinstance(factors, str):
+            factors = [factors]
+        normalized["contributing_factors"] = [str(item) for item in factors]
+
+        reasoning = normalized.get("reasoning_trace", "")
+        if isinstance(reasoning, list):
+            reasoning = " ".join(str(item) for item in reasoning)
+        normalized["reasoning_trace"] = str(reasoning)
+
+        normalized["root_cause"] = str(normalized.get("root_cause", "Agent failed to produce output"))
+        normalized["recommended_action"] = str(normalized.get("recommended_action", "N/A"))
+
+        return RCAOutput.model_validate(normalized)
 
     @staticmethod
     def _extract_json_object(text: str) -> str:
