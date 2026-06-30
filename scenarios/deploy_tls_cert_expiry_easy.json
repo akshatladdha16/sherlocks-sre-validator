@@ -1,0 +1,44 @@
+{
+  "id": "deploy_tls_cert_expiry_easy",
+  "category": "deploy_regression",
+  "difficulty": "easy",
+  "context": {
+    "alert_message": "notification-service webhook delivery failures spike to 31%",
+    "logs": [
+      "2026-06-28T07:52:31Z ERROR notification-svc webhook_id=wh11 TLS handshake failed: x509 certificate has expired",
+      "2026-06-28T07:52:30Z WARN notification-svc endpoint=https://hooks.partner-a.com/events retry=2",
+      "2026-06-28T07:52:28Z INFO cert-manager renewal job status=failed reason=insufficient-permissions",
+      "2026-06-28T07:52:20Z INFO notification-svc deploy marker version=7.5.1",
+      "2026-06-28T07:52:11Z WARN partner-a webhook latency normal but handshake errors rising",
+      "2026-06-28T07:51:59Z INFO kube-event secret/partner-a-tls age=90d",
+      "2026-06-28T07:51:44Z INFO notification-svc health check ok"
+    ],
+    "metrics": {
+      "webhook_delivery_success_rate": "69%",
+      "tls_handshake_failures_10m": "428",
+      "notification_svc_error_rate": "2%",
+      "outbound_requests_per_min": "normal_baseline"
+    },
+    "recent_deploys": [
+      {
+        "time_offset": "-12m",
+        "service": "notification-svc",
+        "change_summary": "No webhook logic change, image rebuild for security patches"
+      },
+      {
+        "time_offset": "-20m",
+        "service": "cert-manager",
+        "change_summary": "RBAC policy tightened for secret write access"
+      }
+    ],
+    "slack_context": "Platform: cert renewals started failing after RBAC update. Notification team confirms only TLS errors to partner-a endpoint."
+  },
+  "ground_truth": {
+    "root_cause": "RBAC tightening broke cert-manager renewal, so partner-a TLS certificate expired and webhook handshakes started failing.",
+    "contributing_factors": [
+      "expired secret partner-a-tls",
+      "renewal job lacked permission to update certificate secret"
+    ],
+    "correct_action": "Fix cert-manager RBAC permissions, renew/replace expired partner-a certificate secret, and verify webhook TLS handshakes recover."
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "cascade_queue_backlog_hard",
+  "category": "cascade",
+  "difficulty": "hard",
+  "context": {
+    "alert_message": "checkout timeouts increased across api-gateway, order-svc, and payment-svc",
+    "logs": [
+      "2026-06-28T21:11:09Z WARN order-svc request_id=od23 waiting for fraud-check result timeout=1800ms",
+      "2026-06-28T21:11:08Z ERROR fraud-worker queue processing delayed oldest_message_age=372s",
+      "2026-06-28T21:11:07Z INFO kafka topic fraud.requests partition=3 lag=48122",
+      "2026-06-28T21:11:05Z WARN payment-svc fallback path triggered due to missing fraud decision",
+      "2026-06-28T21:10:58Z INFO fraud-worker deploy marker version=2.5.0",
+      "2026-06-28T21:10:50Z WARN fraud-worker model inference latency p95=2400ms engine=cpu",
+      "2026-06-28T21:10:31Z INFO api-gateway elevated 504s on /checkout/confirm"
+    ],
+    "metrics": {
+      "fraud_requests_consumer_lag": "48k",
+      "fraud_oldest_message_age": "380s",
+      "checkout_p95_latency": "3200ms",
+      "api_gateway_504_rate": "9%"
+    },
+    "recent_deploys": [
+      {
+        "time_offset": "-28m",
+        "service": "fraud-worker",
+        "change_summary": "Switched inference engine from gpu to cpu fallback due to node taint issue"
+      },
+      {
+        "time_offset": "-2h",
+        "service": "payment-svc",
+        "change_summary": "Minor log enrichment"
+      }
+    ],
+    "slack_context": "ML platform: GPU node pool drained earlier; fraud-worker silently moved to CPU mode. Checkout team sees delays waiting on fraud decisions."
+  },
+  "ground_truth": {
+    "root_cause": "fraud-worker deployment switched inference to CPU fallback, drastically slowing processing and causing queue backlog that cascaded into checkout/payment timeouts.",
+    "contributing_factors": [
+      "checkout flow blocks on fraud decision",
+      "no backlog-based circuit breaker to degrade gracefully"
+    ],
+    "correct_action": "Restore fraud-worker GPU execution or scale workers with lighter model, drain queue backlog, and add timeout/circuit-breaker behavior for dependent services."
+  }
+}

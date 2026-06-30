@@ -10,7 +10,7 @@ def test_all_scenarios_validate() -> None:
     scenario_dir = Path("scenarios")
     scenario_paths = sorted(scenario_dir.glob("*.json"))
 
-    assert len(scenario_paths) == 8
+    assert len(scenario_paths) >= 8
 
     ids: list[str] = []
     for path in scenario_paths:

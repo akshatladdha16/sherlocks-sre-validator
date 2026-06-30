@@ -1,0 +1,49 @@
+{
+  "id": "deploy_feature_flag_race_hard",
+  "category": "deploy_regression",
+  "difficulty": "hard",
+  "context": {
+    "alert_message": "order-confirmation emails missing for 27% of paid orders",
+    "logs": [
+      "2026-06-28T18:05:44Z ERROR notification-svc request_id=nf11 EventValidationError: missing field order_total in payload schema=v2",
+      "2026-06-28T18:05:42Z INFO order-svc emitted OrderPaid event schema=v1 topic=orders.paid",
+      "2026-06-28T18:05:40Z WARN notification-svc feature_flag=email_pipeline_v2 enabled=true for tenant=global",
+      "2026-06-28T18:05:38Z INFO notification-svc consumer group lag normal partition=7 lag=3",
+      "2026-06-28T18:05:21Z WARN email-worker skipped send due to invalid payload request_id=nf09",
+      "2026-06-28T18:05:05Z INFO notification-svc deploy marker version=9.2.0",
+      "2026-06-28T18:04:58Z INFO order-svc deploy marker version=7.8.3"
+    ],
+    "metrics": {
+      "paid_orders_per_min": "normal_baseline",
+      "email_send_success_rate": "73%",
+      "notification_schema_validation_errors": "412/15m",
+      "queue_consumer_lag": "low"
+    },
+    "recent_deploys": [
+      {
+        "time_offset": "-18m",
+        "service": "notification-svc",
+        "change_summary": "Introduced email_pipeline_v2 expecting orders.paid schema v2"
+      },
+      {
+        "time_offset": "-17m",
+        "service": "feature-flag-service",
+        "change_summary": "Rolled out email_pipeline_v2 flag globally"
+      },
+      {
+        "time_offset": "-16m",
+        "service": "order-svc",
+        "change_summary": "Schema v2 emission behind flag order_event_v2 remains disabled"
+      }
+    ],
+    "slack_context": "Release channel: notification v2 and flag rollout were merged quickly; order_event_v2 flag was planned for later but not enabled."
+  },
+  "ground_truth": {
+    "root_cause": "Feature-flag rollout enabled notification-svc email_pipeline_v2 before order-svc started emitting schema v2 events, creating a schema mismatch race and dropped emails.",
+    "contributing_factors": [
+      "global flag enabled immediately instead of staged rollout",
+      "order_event_v2 producer flag remained disabled"
+    ],
+    "correct_action": "Disable email_pipeline_v2 or add backward-compatible schema handling immediately, then coordinate producer-consumer flag sequencing before re-enable."
+  }
+}

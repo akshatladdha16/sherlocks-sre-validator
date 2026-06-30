@@ -1,0 +1,44 @@
+{
+  "id": "db_replica_lag_hard",
+  "category": "database",
+  "difficulty": "hard",
+  "context": {
+    "alert_message": "stale user profile reads and intermittent 409 conflicts from account-api",
+    "logs": [
+      "2026-06-28T09:17:22Z WARN account-api request_id=ap72 profile_version_mismatch expected=184 got=180",
+      "2026-06-28T09:17:20Z INFO account-api read route uses db-replica-cluster for GET /profiles/{id}",
+      "2026-06-28T09:17:15Z WARN postgres-replica replay lag 42s wal_receiver_status=streaming",
+      "2026-06-28T09:17:11Z INFO analytics-exporter started long transaction snapshot at 08:59",
+      "2026-06-28T09:16:57Z WARN account-api returning stale profile data user_id=u-882 fields=[email,preferences]",
+      "2026-06-28T09:16:32Z INFO account-api deploy marker version=3.4.2",
+      "2026-06-28T09:16:05Z WARN redis miss rate increased to 58% for profile_cache"
+    ],
+    "metrics": {
+      "postgres_replica_replay_lag": "45s",
+      "account_api_conflict_rate": "6%",
+      "stale_read_alert_count_15m": "91",
+      "primary_db_cpu": "48%"
+    },
+    "recent_deploys": [
+      {
+        "time_offset": "-22m",
+        "service": "analytics-exporter",
+        "change_summary": "Enabled full-table export mode with long-running transaction"
+      },
+      {
+        "time_offset": "-30m",
+        "service": "account-api",
+        "change_summary": "No read/write routing changes, tracing only"
+      }
+    ],
+    "slack_context": "Data team: export job started earlier than usual. API team: staleness only appears on read-heavy endpoints hitting replicas."
+  },
+  "ground_truth": {
+    "root_cause": "A long-running analytics export transaction increased WAL replay delay on replicas, causing account-api stale reads and profile version conflicts.",
+    "contributing_factors": [
+      "account-api serves reads from lagging replicas",
+      "cache miss spike amplified direct replica reads"
+    ],
+    "correct_action": "Stop or throttle the analytics export transaction, allow replicas to catch up, and add lag-aware read routing fallback to primary when replay lag exceeds threshold."
+  }
+}

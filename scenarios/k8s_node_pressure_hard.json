@@ -1,0 +1,44 @@
+{
+  "id": "k8s_node_pressure_hard",
+  "category": "kubernetes",
+  "difficulty": "hard",
+  "context": {
+    "alert_message": "checkout-svc latency spike and pod evictions across one node pool",
+    "logs": [
+      "2026-06-28T14:42:11Z WARN kubelet nodepool-a-3 Eviction manager: pods under memory pressure threshold",
+      "2026-06-28T14:42:09Z ERROR checkout-svc pod=checkout-svc-7d9f request_id=cc19 upstream timeout to pricing-svc after 2.5s",
+      "2026-06-28T14:41:58Z INFO cluster-autoscaler scale-up triggered for nodepool-a desired=6 current=4",
+      "2026-06-28T14:41:43Z WARN metrics-server nodepool-a-3 memory.available below 250Mi",
+      "2026-06-28T14:41:29Z INFO image-cache daemon preloading large ML artifact size=3.2Gi on each new node",
+      "2026-06-28T14:41:11Z INFO checkout-svc deploy marker version=5.6.1",
+      "2026-06-28T14:40:57Z WARN kubelet nodepool-a-3 Pod kube-system/image-cache-daemon is BestEffort QoS"
+    ],
+    "metrics": {
+      "nodepool_a_memory_pressure_nodes": "3/4",
+      "checkout_svc_p95_latency": "2900ms",
+      "pod_evictions_10m": "17",
+      "checkout_svc_error_rate": "4%"
+    },
+    "recent_deploys": [
+      {
+        "time_offset": "-35m",
+        "service": "kube-system/image-cache-daemon",
+        "change_summary": "Enabled preload of larger recommendation model artifact on startup"
+      },
+      {
+        "time_offset": "-50m",
+        "service": "checkout-svc",
+        "change_summary": "Minor request tracing update"
+      }
+    ],
+    "slack_context": "Platform team: We only touched the image-cache daemon today; app teams report broad latency after autoscaler events."
+  },
+  "ground_truth": {
+    "root_cause": "A kube-system image-cache daemon update started preloading a 3.2Gi artifact per node as BestEffort QoS, causing node memory pressure and eviction storms that degraded checkout-svc latency.",
+    "contributing_factors": [
+      "autoscaler added nodes that immediately ran memory-heavy preload",
+      "BestEffort daemon was not constrained by memory requests/limits"
+    ],
+    "correct_action": "Roll back the image-cache daemon change or add strict memory requests/limits, then drain impacted nodes and verify evictions return to baseline."
+  }
+}
