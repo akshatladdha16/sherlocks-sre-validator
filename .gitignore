@@ -1,6 +1,7 @@
 .env
 results/*.json
 results/*.html
+results/traces/
 !results/sample_run.html
 __pycache__/
 *.pyc
