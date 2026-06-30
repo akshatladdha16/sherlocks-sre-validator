@@ -13,7 +13,7 @@ In incident response, a wrong root-cause guess is expensive. Teams need a repeat
 - What failure modes are most common (symptom-not-cause, missed-upstream, vague-action)?
 
 
-SRE-Bench provides a reproducible harness to answer these with metrics, not intuition. not every production agent performance can be imporved by using just another SOTA model. Sometimes it's the way we prompt, the other time it may be coz of the retrieval technique we use. So Agent observability is equally important than the architecture itself. 
+SRE-Bench provides a reproducible harness to answer these with metrics, not intuition. Better incident agents are not only about swapping to a stronger model; prompting strategy, tool use, and reasoning behavior also matter. This project makes those trade-offs measurable.
 
 ## Architecture
 
@@ -115,6 +115,8 @@ pytest tests/ -v
 sre-bench run --dry-run --agents simple_llm --scenarios k8s_oom_easy
 ```
 
+Note: the runner automatically creates `results/` and trace subfolders if they do not exist.
+
 ### 5) Run full benchmark matrix
 
 ```bash
@@ -158,6 +160,8 @@ After each run:
 - `results/run_<timestamp>.json` - full run payload
 - `results/traces/full/*.txt` - full reasoning trace artifacts
 - `results/traces/summary/*.json` - concise evidence summaries
+
+Generated results artifacts (`results/*.json`, `results/*.html`, `results/traces/*`) are gitignored by default, except `results/sample_run.html` for sharing a sample report.
 
 Report output:
 
