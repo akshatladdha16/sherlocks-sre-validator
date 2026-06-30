@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from importlib import import_module
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,12 @@ console = Console()
 def default_output_path() -> Path:
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return Path("results") / f"run_{stamp}.json"
+
+
+def ensure_output_layout(output_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    (output_path.parent / "traces" / "full").mkdir(parents=True, exist_ok=True)
+    (output_path.parent / "traces" / "summary").mkdir(parents=True, exist_ok=True)
 
 
 def load_scenarios(path: Path = Path("scenarios")) -> list[Scenario]:
@@ -44,12 +51,10 @@ def select_scenarios(all_scenarios: list[Scenario], selector: str) -> list[Scena
 
 
 def build_agent_registry() -> dict[str, Any]:
-    from sre_bench.agents import MultiAgentCrewAgent, ReActAgent, SimpleLLMAgent
-
     return {
-        "simple_llm": SimpleLLMAgent,
-        "react_langchain": ReActAgent,
-        "multi_agent_crewai": MultiAgentCrewAgent,
+        "simple_llm": ("sre_bench.agents.simple_llm", "SimpleLLMAgent"),
+        "react_langchain": ("sre_bench.agents.react_agent", "ReActAgent"),
+        "multi_agent_crewai": ("sre_bench.agents.multi_agent", "MultiAgentCrewAgent"),
     }
 
 
@@ -64,7 +69,13 @@ def instantiate_agents(selector: str) -> list[Any]:
     if unknown:
         raise ValueError(f"Unknown agents: {', '.join(unknown)}")
 
-    return [registry[name]() for name in names]
+    agents: list[Any] = []
+    for name in names:
+        module_name, class_name = registry[name]
+        module = import_module(module_name)
+        agent_cls = getattr(module, class_name)
+        agents.append(agent_cls())
+    return agents
 
 
 def score_threshold_color(score: float) -> str:
@@ -226,6 +237,7 @@ def run_command(
     no_judge: bool = typer.Option(False, help="Skip LLM judge and save raw RCA outputs only."),
 ) -> None:
     load_dotenv()
+    ensure_output_layout(output)
 
     all_scenarios = load_scenarios()
     selected_scenarios = select_scenarios(all_scenarios, scenarios)
